@@ -28,7 +28,7 @@ Folder structure:
  |- COPYING
 ```
 
-Run `make` to compile all proviced test executables, and try some simple tests:
+Run `make` to compile all provided test executables, and try some of them:
 
 ```bash
 $ make
@@ -38,7 +38,7 @@ $ make clean
 
 ### Usage
 
-For use with your own projects, take this simulator as a library and call the `Ssd::event_arrive()` API. Follow existing test runs as a guidance.
+For use with your own projects, take this simulator as a library and call the `Ssd::event_arrive()` API. Follow provided test runs as a guidance.
 
 1. Tweak SSD device configurations in `ssd.conf`
 2. In your main file, call `Ssd::` class public APIs to simulate operating over a flash SSD
