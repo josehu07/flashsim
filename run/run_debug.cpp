@@ -36,7 +36,7 @@ using namespace ssd;
    the physical address being read.
  */
 
-void debug(Ssd& ssd) throw (std::invalid_argument)
+void debug(Ssd& ssd)
 {
 	char ioType;
 	ulong vaddr;
@@ -72,7 +72,7 @@ void debug(Ssd& ssd) throw (std::invalid_argument)
 	}
 }
 
-int main() throw (std::invalid_argument)
+int main()
 {
 	load_config();
 	print_config(stderr);

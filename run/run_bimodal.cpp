@@ -36,11 +36,11 @@ using namespace ssd;
  * Test assumes a 6GB SSD, with Block-size 64 and Page size 2048 bytes.
  */
 
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
 
-	long vaddr;
+	// long vaddr;
 
-	double arrive_time;
+	double arrive_time = 0;
 
 	load_config();
 	print_config(NULL);
@@ -74,12 +74,12 @@ int main(int argc, char **argv){
 	double start_time = 0;
 	double timeMultiplier = 10000;
 
-	double read_time = 0;
-	double write_time = 0;
+	// double read_time = 0;
+	// double write_time = 0;
 	double trim_time = 0;
 
-	unsigned long num_reads = 0;
-	unsigned long num_writes = 0;
+	// unsigned long num_reads = 0;
+	// unsigned long num_writes = 0;
 	unsigned long num_trims = 0;
 
 	std::vector<double> avgsTrim;

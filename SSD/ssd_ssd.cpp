@@ -362,7 +362,7 @@ double Ssd::ready_at(void)
 {
 	double next_ready_time = std::numeric_limits<double>::max();
 
-	for (int i=0;i<size;i++)
+	for (uint i = 0; i < size; i++)
 	{
 		double ready_time = bus.get_channel(i).ready_time();
 

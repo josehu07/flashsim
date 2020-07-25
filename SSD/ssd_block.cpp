@@ -31,8 +31,8 @@
 using namespace ssd;
 
 Block::Block(const Plane &parent, uint block_size, ulong erases_remaining, double erase_delay, long physical_address):
-	pages_invalid(0),
 	physical_address(physical_address),
+	pages_invalid(0),
 	size(block_size),
 
 	/* use a const pointer (Page * const data) to use as an array

@@ -32,9 +32,10 @@ int main()
 {
 	load_config();
 	print_config(NULL);
-   printf("Press ENTER to continue...");
-   getchar();
-   printf("\n");
+
+	printf("Press ENTER to continue...");
+	getchar();
+	printf("\n");
 
 	Ssd *ssd = new Ssd();
 
@@ -44,16 +45,23 @@ int main()
 
 	for (int i = 0; i < SIZE; i++, cur_time += delta)
 	{
-		/* event_arrive(event_type, logical_address, size, start_time) */
 		result = ssd -> event_arrive(WRITE, i, 1, cur_time);
+		printf("Write time: %.20lf\n", result);
+
 		result = ssd -> event_arrive(WRITE, i+10240, 1, cur_time);
+		printf("Write time: %.20lf\n", result);
 	}
+
 	for (int i = 0; i < SIZE; i++, cur_time += delta)
 	{
-		/* event_arrive(event_type, logical_address, size, start_time) */
 		result = ssd -> event_arrive(READ, 1, 1, cur_time);
+		printf("Write time: %.20lf\n", result);
+
 		result = ssd -> event_arrive(READ, i, 1, cur_time);
+		printf("Write time: %.20lf\n", result);
 	}
+
 	delete ssd;
+
 	return 0;
 }

@@ -1,13 +1,21 @@
+# Makefile for FlashSim.
+
 CXX=g++
-CXXFLAGS=-Wall -c -std=c++11 -g
+CXXFLAGS=-Wall -Wno-unused-result -I$(SSD_DIR)/ -c -std=c++11 -O2
 LDFLAGS=
-HEADERS=ssd.h
-SOURCES_SSDLIB = $(filter-out ssd_ftl.cpp, $(wildcard ssd_*.cpp))  \
-                 $(wildcard FTLs/*.cpp)                            \
-                 SSDSim.cpp
-OBJECTS_SSDLIB=$(patsubst %.cpp,%.o,$(SOURCES_SSDLIB))
-SOURCES_RUNS = $(wildcard run_*.cpp)
-PROGRAMS = $(patsubst run_%.cpp,%,$(SOURCES_RUNS))
+
+SSD_DIR=SSD
+FTL_DIR=FTL
+RUN_DIR=run
+
+HEADERS=$(SSD_DIR)/ssd.h
+SOURCES_SSD = $(filter-out $(SSD_DIR)/ssd_ftl.cpp, $(wildcard $(SSD_DIR)/ssd_*.cpp))  \
+              $(wildcard $(FTL_DIR)/*.cpp)                                            \
+              $(SSD_DIR)/SSDSim.cpp
+SOURCES_RUN = $(wildcard $(RUN_DIR)/run_*.cpp)
+
+OBJECTS_SSD=$(patsubst %.cpp,%.o,$(SOURCES_SSD))
+PROGRAMS=$(patsubst $(RUN_DIR)/run_%.cpp,%,$(SOURCES_RUN))
 
 
 all: $(PROGRAMS)
@@ -16,15 +24,11 @@ all: $(PROGRAMS)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 define PROGRAM_TEMPLATE
-  $1 : run_$1.o $$(OBJECTS_SSDLIB)
-	$$(CXX) $$(LDFLAGS) $$< $$(OBJECTS_SSDLIB) -o $$@
+  $1 : $$(RUN_DIR)/run_$1.o $$(OBJECTS_SSD)
+	$$(CXX) $$(LDFLAGS) $$< $$(OBJECTS_SSD) -o $$@
 endef
 
 $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_TEMPLATE,$(prog))))
 
 clean:
-	-rm -rf *.o FTLs/*.o $(PROGRAMS)
-
-.PHONY: files
-files:
-	@echo $(SOURCES_SSDLIB) $(SOURCES_RUNS) $(HEADERS) | tr ' ' '\n'
+	@rm -rf $(SSD_DIR)/*.o $(FTL_DIR)/*.o $(RUN_DIR)/*.o $(PROGRAMS)

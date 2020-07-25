@@ -27,7 +27,7 @@
 #include <queue>
 #include <iostream>
 #include <signal.h>
-#include "../ssd.h"
+#include "ssd.h"
 
 using namespace ssd;
 

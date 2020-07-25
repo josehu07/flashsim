@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
-#include "../ssd.h"
+#include "ssd.h"
 
 using namespace ssd;
 

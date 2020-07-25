@@ -37,7 +37,7 @@
 #include <math.h>
 #include <vector>
 #include <queue>
-#include "../ssd.h"
+#include "ssd.h"
 
 using namespace ssd;
 

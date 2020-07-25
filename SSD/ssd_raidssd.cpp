@@ -82,7 +82,7 @@ double RaidSsd::event_arrive(enum event_type type, ulong logical_address, uint s
 	if (PARALLELISM_MODE == 1) // Striping
 	{
 		double timings[RAID_NUMBER_OF_PHYSICAL_SSDS];
-		for (int i=0;i<RAID_NUMBER_OF_PHYSICAL_SSDS;i++)
+		for (uint i = 0; i < RAID_NUMBER_OF_PHYSICAL_SSDS; i++)
 		{
 			if (buffer == NULL)
 			{
@@ -95,10 +95,10 @@ double RaidSsd::event_arrive(enum event_type type, ulong logical_address, uint s
 
 		}
 
-		for (int i=0;i<RAID_NUMBER_OF_PHYSICAL_SSDS-1;i++)
+		for (uint i = 0; i < RAID_NUMBER_OF_PHYSICAL_SSDS-1; i++)
 		{
 			if (timings[i] != timings[i+1])
-				fprintf(stderr, "ERROR: Timings are not the same. %d %d\n", timings[i], timings[i+1]);
+				fprintf(stderr, "ERROR: Timings are not the same. %lf %lf\n", timings[i], timings[i+1]);
 		}
 
 		return timings[0];

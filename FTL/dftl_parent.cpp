@@ -37,7 +37,7 @@
 #include <queue>
 #include <iostream>
 #include <limits>
-#include "../ssd.h"
+#include "ssd.h"
 
 using namespace ssd;
 

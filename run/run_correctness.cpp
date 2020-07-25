@@ -2,9 +2,8 @@
  * Matias Bjørling 24/2-2011
  */
 
-#include "ssd.h"
-#include <stdio.h>
 
+#include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -13,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <string>
+#include "ssd.h"
 
 using namespace ssd;
 
