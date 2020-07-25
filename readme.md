@@ -22,7 +22,7 @@ Folder structure:
 
 ```text
 --- SSD/    # SSD simulator main logic
- |- FTL/    # FTL implementation is separated from main logic, there are several impls provided by Matias here
+ |- FTL/    # FTL algorithms are separated from main logic, there are several provided by Matias here
  |- run/    # Example test runs
  |- Makefile
  |- COPYING
@@ -33,11 +33,16 @@ Run `make` to compile all proviced test executables, and try some simple tests:
 ```bash
 $ make
 $ ./test2
+$ make clean
 ```
 
 ### Usage
 
 For use with your own projects, take this simulator as a library and call the `Ssd::event_arrive()` API. Follow existing test runs as a guidance.
+
+1. Tweak SSD device configurations in `ssd.conf`
+2. In your main file, call `Ssd::` class public APIs to simulate operating over a flash SSD
+3. Compile your project & run
 
 
 ## FTL Contribution From Matias
