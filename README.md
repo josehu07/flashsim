@@ -121,11 +121,11 @@ For each request, messages MUST strictly follow the exact byte length and order.
 
 To do a WRITE:
 
-<img src="figures/flashsim-socket-protocol-write.jpg" width=500px align=center />
+<img src="figures/flashsim-socket-protocol-write.jpg" width=420px align=center />
 
 To do a READ:
 
-<img src="figures/flashsim-socket-protocol-read.jpg" width=500px align=center />
+<img src="figures/flashsim-socket-protocol-read.jpg" width=420px align=center />
 
 Messages format details:
 
