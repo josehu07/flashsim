@@ -2,7 +2,7 @@
  * Standalone FlashSim simulator.
  *
  * Made this standalone version to enable non-C++ projects to interact with
- * a simulated flash SSD.
+ * multiple simulated flash SSDs.
  *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */
@@ -74,7 +74,7 @@ struct __attribute__((__packed__)) req_header {
     int           direction : 32;
     unsigned long addr      : 64;
     unsigned int  size      : 32;
-    double        start_time_ms;
+    double        start_time;
 };
 
 static const size_t REQ_HEADER_LENGTH = 24;
@@ -92,16 +92,17 @@ static const int DIR_WRITE = 1;
  *   - `buf` is a buffer of at least that number of pages large
  */
 static double
-process_write(ulong addr, uint size, void *buf, double start_time_ms)
+process_write(ulong addr, uint size, void *buf, double start_time)
 {
-    double time_used_ms;
+    double time_used;
 
-    time_used_ms = ssd_handle->event_arrive(WRITE, addr, size / PAGE_SIZE,
-                                            start_time_ms, buf);
+    time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
+                                         size / PAGE_SIZE,
+                                         start_time, buf);
 
-    printf("WR: addr %lu of size %u - %.10lf ms\n", addr, size,
-           time_used_ms);
-    return time_used_ms;
+    printf("WR: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
+           start_time, time_used);
+    return time_used;
 }
 
 /**
@@ -112,16 +113,17 @@ process_write(ulong addr, uint size, void *buf, double start_time_ms)
  * Result should be reached through `Ssd::get_result_buffer()`.
  */
 static double
-process_read(ulong addr, uint size, double start_time_ms)
+process_read(ulong addr, uint size, double start_time)
 {
-    double time_used_ms;
+    double time_used;
 
-    time_used_ms = ssd_handle->event_arrive(READ, addr, size / PAGE_SIZE,
-                                            start_time_ms, NULL);
+    time_used = ssd_handle->event_arrive(READ, addr / PAGE_SIZE,
+                                         size / PAGE_SIZE,
+                                         start_time, NULL);
 
-    printf("RD: addr %lu of size %u - %.10lf ms\n", addr, size,
-           time_used_ms);
-    return time_used_ms;
+    printf("RD: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
+           start_time, time_used);
+    return time_used;
 }
 
 
@@ -180,10 +182,13 @@ request_loop(int csock)
             struct req_header *header = (struct req_header *) buf;
             void *data, *resp_data, *resp_time;
             uint remainder, size;
-            double time_used_ms;
+            double time_used;
 
             if (header->size <= 0)
                 error("request header invalid size");
+
+            if (header->addr % PAGE_SIZE != 0)
+                error("request unaligned logical address");
 
             /**
              * Valid request header received.
@@ -201,19 +206,21 @@ request_loop(int csock)
              * device can be accessed through `Ssd::get_result_buffer()`.
              * We will then send back to client a packet of
              * `header->size` length containing data the client wants,
-             * followed a packet of length 8 containing `time_used_ms`
+             * followed a packet of length 8 containing `time_used`
              * as double.
              */
             if (header->direction == DIR_READ) {
-                time_used_ms = process_read(header->addr, size,
-                                            header->start_time_ms);
+                time_used = process_read(header->addr, size,
+                                         header->start_time);
 
                 resp_data = malloc(header->size);
-                memcpy(resp_data, ssd_handle->get_result_buffer(),
-                       header->size);
+                if (PAGE_ENABLE_DATA) {
+                    memcpy(resp_data, ssd_handle->get_result_buffer(),
+                           header->size);
+                }
 
                 resp_time = malloc(8);
-                memcpy(resp_time, &time_used_ms, sizeof(double));
+                memcpy(resp_time, &time_used, sizeof(double));
 
                 wbytes = write(csock, resp_data, header->size);
                 if (wbytes != (int) header->size)
@@ -230,18 +237,18 @@ request_loop(int csock)
              * If WRITE, we expect the next message from client to be a
              * packet of length exactly `header->size` containing the
              * data to write. We will then send back to client a packet
-             * of length 8 containing `time_used_ms` as double.
+             * of length 8 containing `time_used` as double.
              */
             } else {
                 rbytes = read(csock, data, header->size);
                 if (rbytes != (int) header->size)
                     error("client data to write wrong length");
 
-                time_used_ms = process_write(header->addr, size, data,
-                                             header->start_time_ms);
+                time_used = process_write(header->addr, size, data,
+                                          header->start_time);
 
                 resp_time = malloc(8);
-                memcpy(resp_time, &time_used_ms, sizeof(double));
+                memcpy(resp_time, &time_used, sizeof(double));
 
                 wbytes = write(csock, resp_time, sizeof(resp_time));
                 if (wbytes != 8)

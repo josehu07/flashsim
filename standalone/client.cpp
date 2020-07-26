@@ -55,7 +55,7 @@ static const int DIR_WRITE = 1;
  * Open a client-side socket and connect to the given sock file.
  */
 static void
-open_socket()
+prepare_socket()
 {
     struct sockaddr_un saddr;
     int ret;
@@ -89,7 +89,7 @@ main(int argc, char *argv[])
         error("request header length incorrect");
 
     /** Open client socket & connect. */
-    open_socket();
+    prepare_socket();
 
     /** Send a write request. */
     {
