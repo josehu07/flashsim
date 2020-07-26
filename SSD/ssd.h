@@ -59,7 +59,8 @@ typedef unsigned long ulong;
 
 /* Configuration file parsing for extern config variables defined below */
 void load_entry(char *name, double value, uint line_number);
-void load_config(void);
+void load_config(const char * const config_name);
+void load_config(void); 	/** Default wrapper to read config from "ssd.conf". */
 void print_config(FILE *stream);
 
 /* Ram class:

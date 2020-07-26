@@ -237,8 +237,7 @@ void load_entry(char *name, double value, uint line_number) {
 	return;
 }
 
-void load_config(void) {
-	const char * const config_name = "ssd.conf";
+void load_config(const char * const config_name) {
 	FILE *config_file = NULL;
 
 	/* update sscanf line below with max name length (%s) if changing sizes */
@@ -274,6 +273,11 @@ void load_config(void) {
 	NUMBER_OF_ADDRESSABLE_BLOCKS = (SSD_SIZE * PACKAGE_SIZE * DIE_SIZE * PLANE_SIZE) / VIRTUAL_PAGE_SIZE;
 
 	return;
+}
+
+/** Default wrapper. */
+void load_config(void) {
+	load_config("ssd.conf");
 }
 
 void print_config(FILE *stream) {

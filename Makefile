@@ -1,34 +1,50 @@
 # Makefile for FlashSim.
 
+
 CXX=g++
-CXXFLAGS=-Wall -Wno-unused-result -I$(SSD_DIR)/ -c -std=c++11 -O2
+CXXFLAGS=-Wall -Wno-unused-result -I$(SSD_DIR)/ -c -std=c++11 -g
 LDFLAGS=
 
 SSD_DIR=SSD
 FTL_DIR=FTL
-RUN_DIR=run
+TS_DIR=tests
+SA_DIR=standalone
 
-HEADERS=$(SSD_DIR)/ssd.h
-SOURCES_SSD = $(filter-out $(SSD_DIR)/ssd_ftl.cpp, $(wildcard $(SSD_DIR)/ssd_*.cpp))  \
-              $(wildcard $(FTL_DIR)/*.cpp)                                            \
-              $(SSD_DIR)/SSDSim.cpp
-SOURCES_RUN = $(wildcard $(RUN_DIR)/run_*.cpp)
-
+HEADERS_SSD=$(SSD_DIR)/ssd.h
+SOURCES_SSD=$(filter-out $(SSD_DIR)/ssd_ftl.cpp, $(wildcard $(SSD_DIR)/ssd_*.cpp)) \
+            $(wildcard $(FTL_DIR)/*.cpp)
 OBJECTS_SSD=$(patsubst %.cpp,%.o,$(SOURCES_SSD))
-PROGRAMS=$(patsubst $(RUN_DIR)/run_%.cpp,%,$(SOURCES_RUN))
+
+SOURCES_TS=$(wildcard $(TS_DIR)/*.cpp)
+SOURCES_SA=$(wildcard $(SA_DIR)/*.cpp)
+PROGRAMS_TS=$(patsubst $(TS_DIR)/%.cpp,%,$(SOURCES_TS))
+PROGRAMS_SA=$(patsubst $(SA_DIR)/%.cpp,%,$(SOURCES_SA))
 
 
-all: $(PROGRAMS)
+all: $(PROGRAMS_SA)
 
-.cpp.o: $(HEADERS)
+tests: $(PROGRAMS_TS)
+
+
+.cpp.o: $(HEADERS_SSD)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-define PROGRAM_TEMPLATE
-  $1 : $$(RUN_DIR)/run_$1.o $$(OBJECTS_SSD)
+
+define program_template_ts
+  $1 : $$(TS_DIR)/$1.o $$(OBJECTS_SSD)
 	$$(CXX) $$(LDFLAGS) $$< $$(OBJECTS_SSD) -o $$@
 endef
 
-$(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_TEMPLATE,$(prog))))
+$(foreach PROG,$(PROGRAMS_TS),$(eval $(call program_template_ts,$(PROG))))
+
+
+define program_template_sa
+  $1 : $$(SA_DIR)/$1.o $$(OBJECTS_SSD)
+	$$(CXX) $$(LDFLAGS) $$< $$(OBJECTS_SSD) -o $$@
+endef
+
+$(foreach PROG,$(PROGRAMS_SA),$(eval $(call program_template_sa,$(PROG))))
+
 
 clean:
-	@rm -rf $(SSD_DIR)/*.o $(FTL_DIR)/*.o $(RUN_DIR)/*.o $(PROGRAMS)
+	@rm -rf $(SSD_DIR)/*.o $(FTL_DIR)/*.o $(PROGRAMS_TS) $(PROGRAMS_SA)
