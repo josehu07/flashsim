@@ -42,7 +42,7 @@ struct __attribute__((__packed__)) req_header {
     int           direction : 32;
     unsigned long addr      : 64;
     unsigned int  size      : 32;
-    double        start_time_ms;
+    double        start_time;
 };
 
 static const size_t REQ_HEADER_LENGTH = 24;
@@ -97,13 +97,13 @@ main(int argc, char *argv[])
         int rbytes, wbytes;
         char data[17] = "String-of-len-16";
         char time_used_buf[8];
-        double time_used_ms;
+        double time_used;
 
         // Request header.
         header.direction = DIR_WRITE;
         header.addr = 8192;
         header.size = 17;
-        header.start_time_ms = 3200.28;
+        header.start_time = 3200.28;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
@@ -119,9 +119,9 @@ main(int argc, char *argv[])
         if (rbytes != 8)
             error("write processing time recv failed");
 
-        time_used_ms = *((double *) time_used_buf);
+        time_used = *((double *) time_used_buf);
         printf("Written \"%s\" to SSD, took %.10lf ms\n",
-               data, time_used_ms);
+               data, time_used);
     }
 
     /** Send a read request to read that out. */
@@ -130,13 +130,13 @@ main(int argc, char *argv[])
         int rbytes, wbytes;
         char data[17];
         char time_used_buf[8];
-        double time_used_ms;
+        double time_used;
 
         // Request header.
         header.direction = DIR_READ;
         header.addr = 8192;
         header.size = 17;
-        header.start_time_ms = 3471.32;
+        header.start_time = 3471.32;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
@@ -152,8 +152,8 @@ main(int argc, char *argv[])
         if (rbytes != 8)
             error("read processing time recv failed");
 
-        time_used_ms = *((double *) time_used_buf);
+        time_used = *((double *) time_used_buf);
         printf("Read \"%s\" from SSD, took %.10lf ms\n",
-               data, time_used_ms);
+               data, time_used);
     }
 }

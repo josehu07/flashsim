@@ -11,5 +11,7 @@ raid
 test
 test2
 ufliptrace
+flashsim
+client
 *.o
 *.kdev4
