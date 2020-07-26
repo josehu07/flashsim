@@ -20,7 +20,7 @@ Folder structure:
 
 ```text
 --- SSD/         # SSD simulator main logic
- |- FTL/         # FTL algorithms are separated from main logic, there are several provided by Matias here
+ |- FTL/         # FTL algorithms are separated from main logic
  |- test/        # Example test runs
  |- standalone/  # Standalone version & an example client
  |- Makefile
