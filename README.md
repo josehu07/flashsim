@@ -89,7 +89,7 @@ Notice that you can launch multiple instances, each opening a different socket f
    ```
 3. In your project, send requests to & receive responses from the socket file through a strictly-defined Unix-domain socket protocol, as defined in the next section
 
-Follow the example client code `standalone/client.cpp` as a guidance. You can run the excample client by:
+Follow the example client code `standalone/client.cpp` as a guidance. You can run the example client by:
 
 ```bash
 # In shell 1
