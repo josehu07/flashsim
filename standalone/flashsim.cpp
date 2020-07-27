@@ -100,8 +100,8 @@ process_write(ulong addr, uint size, void *buf, double start_time)
                                          size / PAGE_SIZE,
                                          start_time, buf);
 
-    printf("WR: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
-           start_time, time_used);
+    // printf("WR: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
+    //        start_time, time_used);
     return time_used;
 }
 
@@ -121,8 +121,8 @@ process_read(ulong addr, uint size, double start_time)
                                          size / PAGE_SIZE,
                                          start_time, NULL);
 
-    printf("RD: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
-           start_time, time_used);
+    // printf("RD: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
+    //        start_time, time_used);
     return time_used;
 }
 
