@@ -62,6 +62,12 @@ static const unsigned long FLASH_SPACE = 67108864;
 static const unsigned long PAGE_SIZE = 4096;
 
 
+/** Benchmarking parameters. */
+static const int MAX_INTENSITY = 12000;
+static const int INTENSITY_TICK = 200;
+static const int REQS_PER_ROUND = 20000;
+
+
 /**
  * Open a client-side socket and connect to the given sock file.
  */
@@ -188,7 +194,8 @@ bench_seq_read(double begin_time_ms)
     std::cout << "Latency Benchmark - Logical Sequential Read:" << std::endl
               << "  Intensity (#4K-Reqs/s)   Latency (ms)"      << std::endl;
 
-    for (int intensity = 500; intensity <= 40000; intensity += 500) {
+    for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
+         intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
         std::default_random_engine rand_gen;
         std::uniform_real_distribution<double> rand_dist(0.95, 1.05);
@@ -196,9 +203,9 @@ bench_seq_read(double begin_time_ms)
         double avg_time_used_ms = 0;
         int num_reqs = 0;
 
-        for (num_reqs = 0; num_reqs < 10000; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
             double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / 10000;
+            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
             cur_time_ms += delta_ms * rand_dist(rand_gen);
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
@@ -226,7 +233,8 @@ bench_seq_write(double begin_time_ms)
     std::cout << "Latency Benchmark - Logical Sequential Write:" << std::endl
               << "  Intensity (#4K-Reqs/s)   Latency (ms)"       << std::endl;    
 
-    for (int intensity = 500; intensity <= 40000; intensity += 500) {
+    for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
+         intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
         std::default_random_engine rand_gen;
         std::uniform_real_distribution<double> rand_dist(0.95, 1.05);
@@ -234,9 +242,9 @@ bench_seq_write(double begin_time_ms)
         double avg_time_used_ms = 0;
         int num_reqs = 0;
 
-        for (num_reqs = 0; num_reqs < 10000; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
             double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / 10000;
+            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
             cur_time_ms += delta_ms * rand_dist(rand_gen);
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
@@ -268,18 +276,19 @@ bench_rnd_read(double begin_time_ms)
     std::cout << "Latency Benchmark - Uniformly Random Read:" << std::endl
               << "  Intensity (#4K-Reqs/s)   Latency (ms)"    << std::endl;
 
-    for (int intensity = 500; intensity <= 40000; intensity += 500) {
+    for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
+         intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
         std::uniform_real_distribution<double> delta_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
 
-        for (num_reqs = 0; num_reqs < 10000; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
             addr = PAGE_SIZE * addr_dist(rand_gen);
             
             double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / 10000;
+            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
             cur_time_ms += delta_ms * delta_dist(rand_gen);
         }
@@ -310,18 +319,19 @@ bench_rnd_write(double begin_time_ms)
     std::cout << "Latency Benchmark - Uniformly Random Write:" << std::endl
               << "  Intensity (#4K-Reqs/s)   Latency (ms)"     << std::endl;
 
-    for (int intensity = 500; intensity <= 40000; intensity += 500) {
+    for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
+         intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
         std::uniform_real_distribution<double> delta_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
 
-        for (num_reqs = 0; num_reqs < 10000; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
             addr = PAGE_SIZE * addr_dist(rand_gen);
             
             double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / 10000;
+            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
             cur_time_ms += delta_ms * delta_dist(rand_gen);
         }
