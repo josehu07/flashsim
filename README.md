@@ -23,6 +23,7 @@ Folder structure:
  |- FTL/         # FTL algorithms are separated from main logic
  |- test/        # Example test runs
  |- standalone/  # Standalone version & an example client
+ |- benchmark/   # Benchmarking utilities & some results
  |- Makefile
  |- COPYING
 ```

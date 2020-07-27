@@ -211,7 +211,7 @@ bench_seq_read(double begin_time_ms)
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
-        printf("  %20d     %10.2lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
         fflush(stdout);
 
         cur_time_ms += 50000.0;
@@ -250,7 +250,7 @@ bench_seq_write(double begin_time_ms)
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
-        printf("  %20d     %10.2lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
         fflush(stdout);
 
         cur_time_ms += 50000.0;
@@ -293,7 +293,7 @@ bench_rnd_read(double begin_time_ms)
             cur_time_ms += delta_ms * delta_dist(rand_gen);
         }
 
-        printf("  %20d     %10.2lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
         fflush(stdout);
 
         cur_time_ms += 50000.0;
@@ -336,7 +336,7 @@ bench_rnd_write(double begin_time_ms)
             cur_time_ms += delta_ms * delta_dist(rand_gen);
         }
 
-        printf("  %20d     %10.2lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
         fflush(stdout);
 
         cur_time_ms += 50000.0;

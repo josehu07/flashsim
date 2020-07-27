@@ -60,7 +60,8 @@ $(foreach PROG,$(PROGRAMS_BM),$(eval $(call program_template_bm,$(PROG))))
 
 
 clean:
-	@rm -rf $(SSD_DIR)/*.o $(FTL_DIR)/*.o $(PROGRAMS_TS) $(PROGRAMS_SA) $(PROGRAMS_BM)
+	@rm -rf $(SSD_DIR)/*.o $(FTL_DIR)/*.o $(TS_DIR)/*.o $(SA_DIR)/*.o $(BM_DIR)/*.o \
+	        $(PROGRAMS_TS) $(PROGRAMS_SA) $(PROGRAMS_BM)
 
 
 .PHONY: all tests bench clean
