@@ -151,7 +151,7 @@ issue_read(unsigned long addr, unsigned int size, double start_time)
     double time_used;
 
     if (addr % PAGE_SIZE != 0 || size <= 0)
-        error("invalid issue_write()");
+        error("invalid issue_read()");
 
     data = malloc(size);
 
