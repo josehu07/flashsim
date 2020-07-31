@@ -89,16 +89,23 @@ static const int DIR_WRITE = 1;
  * MUST ensure that:
  *   - `addr` is aligned to pages
  *   - `size` is a multiple of pages
- *   - `buf` is a buffer of at least that number of pages large
+ *   - `buf` is a buffer of at least that number of pages large,
+ *           or NULL if not passing actual data
  */
 static double
 process_write(ulong addr, uint size, void *buf, double start_time)
 {
     double time_used;
 
-    time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
-                                         size / PAGE_SIZE,
-                                         start_time, buf);
+    if (PAGE_ENABLE_DATA) {
+        time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
+                                             size / PAGE_SIZE,
+                                             start_time, buf);
+    } else {
+        time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
+                                             size / PAGE_SIZE,
+                                             start_time, NULL);
+    }
 
     // printf("WR: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
     //        start_time, time_used);
@@ -110,7 +117,8 @@ process_write(ulong addr, uint size, void *buf, double start_time)
  * MUST ensure that:
  *   - `addr` is aligned to pages
  *   - `size` is a multiple of pages
- * Result should be reached through `Ssd::get_result_buffer()`.
+ * Result should be reached through `Ssd::get_result_buffer()` if passing
+ * actual data.
  */
 static double
 process_read(ulong addr, uint size, double start_time)
@@ -198,8 +206,6 @@ request_loop(int csock)
             remainder = header->size % PAGE_SIZE;
             size = remainder == 0 ? header->size
                                   : header->size + PAGE_SIZE - remainder;
-            data = malloc(size);
-            bzero(data, sizeof(data));
 
             /**
              * If READ, after processing the request, data read from
@@ -213,24 +219,25 @@ request_loop(int csock)
                 time_used = process_read(header->addr, size,
                                          header->start_time);
 
-                resp_data = malloc(header->size);
                 if (PAGE_ENABLE_DATA) {
+                    resp_data = malloc(header->size);
                     memcpy(resp_data, ssd_handle->get_result_buffer(),
                            header->size);
+
+                    wbytes = write(csock, resp_data, header->size);
+                    if (wbytes != (int) header->size)
+                        error("respond data to read failed");
+
+                    free(resp_data);
                 }
 
                 resp_time = malloc(8);
                 memcpy(resp_time, &time_used, sizeof(double));
 
-                wbytes = write(csock, resp_data, header->size);
-                if (wbytes != (int) header->size)
-                    error("respond data to read failed");
-
                 wbytes = write(csock, resp_time, 8);
                 if (wbytes != 8)
                     error("respond time of read failed");
 
-                free(resp_data);
                 free(resp_time);
             
             /**
@@ -240,12 +247,20 @@ request_loop(int csock)
              * of length 8 containing `time_used` as double.
              */
             } else {
-                rbytes = read(csock, data, header->size);
-                if (rbytes != (int) header->size)
-                    error("client data to write wrong length");
+                if (PAGE_ENABLE_DATA) {
+                    data = malloc(size);
+                    bzero(data, sizeof(data));
+
+                    rbytes = read(csock, data, header->size);
+                    if (rbytes != (int) header->size)
+                        error("client data to write wrong length");
+                }
 
                 time_used = process_write(header->addr, size, data,
                                           header->start_time);
+
+                if (PAGE_ENABLE_DATA)
+                    free(data);
 
                 resp_time = malloc(8);
                 memcpy(resp_time, &time_used, sizeof(double));
@@ -256,8 +271,6 @@ request_loop(int csock)
 
                 free(resp_time);
             }
-
-            free(data);
         }
     }
 }

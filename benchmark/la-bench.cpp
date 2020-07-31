@@ -1,5 +1,6 @@
 /**
- * Standalone FlashSim simulator benchmarking client.
+ * Standalone FlashSim simulator benchmarking client. Passing actual data
+ * here, so MUST ensure that `PAGE_ENABLE_DATA` option in conf is set to 1.
  *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */

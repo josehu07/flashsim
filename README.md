@@ -141,7 +141,7 @@ Messages format details:
   where `Direction` can be:
     - `0` for READ
     - `1` for WRITE
-- Data Bytes:
+- Data Bytes [This message presents IF AND ONLY IF the `PAGE_ENABLE_DATA` option in conf file is set to `1`; Otherwise, skip this message]:
   ```text
   +------------------------------+
   |         Data bytes           |
@@ -149,6 +149,7 @@ Messages format details:
   | exactly `header->size` bytes |
   +------------------------------+
   ```
+  If passing actual data, length of each request CANNOT EXCEED `65516` bytes, as this is the message size limit of UNIX-domain sockets.
 - Processing Time:
   ```text
   +-------------------------+

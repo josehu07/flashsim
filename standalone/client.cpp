@@ -1,5 +1,6 @@
 /**
- * Standalone FlashSim simulator client example.
+ * Standalone FlashSim simulator client example. Passing actual data here,
+ * so MUST ensure that `PAGE_ENABLE_DATA` option in conf is set to 1.
  *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */
@@ -109,7 +110,8 @@ main(int argc, char *argv[])
         if (wbytes != REQ_HEADER_LENGTH)
             error("write request header send failed");
 
-        // Data to write.
+        // Data to write. If not passing actula data, then do not send
+        // this message.
         wbytes = write(ssock, data, header.size);
         if (wbytes != (int) header.size)
             error("write request data send failed");
@@ -128,7 +130,7 @@ main(int argc, char *argv[])
     {
         struct req_header header;
         int rbytes, wbytes;
-        char data[17];
+        char data[17] = "";
         char time_used_buf[8];
         double time_used;
 
@@ -142,7 +144,8 @@ main(int argc, char *argv[])
         if (wbytes != REQ_HEADER_LENGTH)
             error("read request header send failed");
 
-        // Data read out respond.
+        // Data read out respond. If not passing actual data, then do not
+        // receive this message.
         rbytes = read(ssock, data, header.size);
         if (rbytes != (int) header.size)
             error("read request data recv failed");
