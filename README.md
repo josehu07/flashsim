@@ -103,7 +103,7 @@ $ ./client simssd
 # The simulator won't exit until Ctrl+C in shell 1.
 ```
 
-> For the standalone version, unit of time in the configuration file must be in milliseconds (ms).
+> For standalone version, unit of time in the configuration file must be in milliseconds (ms).
 
 Please reference if you use for your research:
 
