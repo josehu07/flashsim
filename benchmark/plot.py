@@ -29,8 +29,12 @@ with open("results.txt") as fres:
             intensities[cur_bench].append(intensity)
             latencies[cur_bench].append(latency)
 
-            throughput = 1000.0 * (PAGE_SIZE / 1024) \
-                         / ((1000.0 / intensity) + latency)
+            delta_ms = 1000.0 / intensity
+            throughput = None
+            if latency > delta_ms:
+                throughput = 1000.0 * (PAGE_SIZE / 1024) / latency
+            else:
+                throughput = 1000.0 * (PAGE_SIZE / 1024) / delta_ms
             throughputs[cur_bench].append(throughput)
 
 # print(intensities)

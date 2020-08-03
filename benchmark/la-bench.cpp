@@ -198,8 +198,6 @@ bench_seq_read(double begin_time_ms)
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        std::default_random_engine rand_gen;
-        std::uniform_real_distribution<double> rand_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
@@ -208,7 +206,7 @@ bench_seq_read(double begin_time_ms)
             double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
             avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
-            cur_time_ms += delta_ms * rand_dist(rand_gen);
+            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
@@ -237,8 +235,6 @@ bench_seq_write(double begin_time_ms)
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        std::default_random_engine rand_gen;
-        std::uniform_real_distribution<double> rand_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
@@ -247,7 +243,7 @@ bench_seq_write(double begin_time_ms)
             double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
             avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
-            cur_time_ms += delta_ms * rand_dist(rand_gen);
+            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
@@ -280,7 +276,6 @@ bench_rnd_read(double begin_time_ms)
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        std::uniform_real_distribution<double> delta_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
@@ -291,7 +286,7 @@ bench_rnd_read(double begin_time_ms)
             double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
             avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
-            cur_time_ms += delta_ms * delta_dist(rand_gen);
+            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
         }
 
         printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
@@ -323,7 +318,6 @@ bench_rnd_write(double begin_time_ms)
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        std::uniform_real_distribution<double> delta_dist(0.95, 1.05);
         double delta_ms = 1000.0 / (double) intensity;
         double avg_time_used_ms = 0;
         int num_reqs = 0;
@@ -334,7 +328,7 @@ bench_rnd_write(double begin_time_ms)
             double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
             avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
-            cur_time_ms += delta_ms * delta_dist(rand_gen);
+            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
         }
 
         printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
