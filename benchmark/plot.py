@@ -16,7 +16,7 @@ with open("results.txt") as fres:
     for line in fres.readlines():
         line = line.strip()
         if line.startswith("Benchmark"):
-            cur_bench = line[20:line.find(':')]
+            cur_bench = line[12:line.find(':')]
             intensities[cur_bench] = []
             throughputs[cur_bench] = []
         elif cur_bench is not None \
