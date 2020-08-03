@@ -194,6 +194,7 @@ request_loop(int csock)
             void *data = NULL, *resp_data;
             uint remainder, size;
             double start_time_ms, time_used_ms;
+            char ack_byte = 'k';
 
             if (header->size <= 0)
                 error("request header invalid size");
@@ -263,9 +264,14 @@ request_loop(int csock)
             }
 
             /** Sleep for processing time of this request. */
-            if(time_used_ms <= 0)
+            if (time_used_ms <= 0)
                 error("negative processing time");
             usleep((int) (time_used_ms * 1000));
+
+            /** Send back ACK message. */
+            wbytes = write(csock, &ack_byte, 1);
+            if (wbytes != 1)
+                error("send back ACK failed");
         }
     }
 }

@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -63,9 +64,9 @@ static const unsigned long PAGE_SIZE = 4096;
 
 
 /** Benchmarking parameters. */
-static const int MAX_INTENSITY = 12000;
+static const int MAX_INTENSITY = 3000;
 static const int INTENSITY_TICK = 200;
-static const int REQS_PER_ROUND = 20000;
+static const int PASSES_PER_ROUND = 2;
 
 
 /**
@@ -95,27 +96,27 @@ prepare_socket()
 
 
 /**
- * Make a write request. Returns the processing time elapsed.
+ * Make a write request.
  */
-static double
-issue_write(unsigned long addr, unsigned int size, double start_time)
+static void
+issue_write(unsigned long addr, unsigned int size)
 {
     struct req_header header;
     int rbytes, wbytes;
     void *data;
-    char time_used_buf[8];
-    double time_used;
+    char ack_byte;
 
     if (addr % PAGE_SIZE != 0 || size <= 0)
         error("invalid issue_write()");
 
     data = malloc(size);
 
+
+
     // Request header.
     header.direction = DIR_WRITE;
     header.addr = addr;
     header.size = size;
-    header.start_time = start_time;
 
     wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
     if (wbytes != REQ_HEADER_LENGTH)
@@ -126,28 +127,24 @@ issue_write(unsigned long addr, unsigned int size, double start_time)
     if (wbytes != (int) header.size)
         error("write request data send failed");
 
-    // Processing time respond.
-    rbytes = read(ssock, time_used_buf, 8);
-    if (rbytes != 8)
-        error("write processing time recv failed");
+    // ACK.
+    rbytes = read(ssock, &ack_byte, 1);
+    if (rbytes != 1)
+        error("write request ACK error");
 
     free(data);
-
-    time_used = *((double *) time_used_buf);
-    return time_used;
 }
 
 /**
- * Make a read request. Returns the processing time elapsed.
+ * Make a read request.
  */
-static double
-issue_read(unsigned long addr, unsigned int size, double start_time)
+static void
+issue_read(unsigned long addr, unsigned int size)
 {
     struct req_header header;
     int rbytes, wbytes;
     void *data;
-    char time_used_buf[8];
-    double time_used;
+    char ack_byte;
 
     if (addr % PAGE_SIZE != 0 || size <= 0)
         error("invalid issue_read()");
@@ -158,7 +155,6 @@ issue_read(unsigned long addr, unsigned int size, double start_time)
     header.direction = DIR_READ;
     header.addr = addr;
     header.size = size;
-    header.start_time = start_time;
 
     wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
     if (wbytes != REQ_HEADER_LENGTH)
@@ -169,201 +165,210 @@ issue_read(unsigned long addr, unsigned int size, double start_time)
     if (rbytes != (int) header.size)
         error("read request data recv failed");
 
-    // Processing time respond.
-    rbytes = read(ssock, time_used_buf, 8);
-    if (rbytes != 8)
-        error("read processing time recv failed");
+    // ACK.
+    rbytes = read(ssock, &ack_byte, 1);
+    if (rbytes != 1)
+        error("read request ACK error");
 
     free(data);
-
-    time_used = *((double *) time_used_buf);
-    return time_used;
 }
 
 
 /**
- * Latency benchmark - sequential read.
- * Returns a safe finish time.
+ * Benchmark - sequential read.
  */
-static double
-bench_seq_read(double begin_time_ms)
+static void
+bench_seq_read()
 {
-    double cur_time_ms = begin_time_ms;
+    struct timeval old_time, new_time;
     unsigned long addr = 0;
 
-    std::cout << "Latency Benchmark - Logical Sequential Read:" << std::endl
-              << "  Intensity (#4K-Reqs/s)   Latency (ms)"      << std::endl;
+    std::cout << "Benchmark - Logical Sequential Read:"         << std::endl
+              << "  Intensity (#4K-Reqs/s)   Interval (ms)" << std::endl;
 
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        double delta_ms = 1000.0 / (double) intensity;
-        double avg_time_used_ms = 0;
-        int num_reqs = 0;
+        double delta_ms = 1000.0 / (double) intensity, avg_interval_ms = 0;
+        int num_reqs = 0, total_reqs = PASSES_PER_ROUND * intensity;
 
-        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
-            double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
+        for (num_reqs = 0; num_reqs < total_reqs; ++num_reqs) {
+            double time_used_ms;
 
-            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
+            gettimeofday(&old_time, NULL);
+            issue_read(addr, PAGE_SIZE);
+            gettimeofday(&new_time, NULL);
+
+            time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
+                         + (double) (new_time.tv_usec - old_time.tv_usec) / 1000;
+
+            if (delta_ms > time_used_ms) {
+                avg_interval_ms += delta_ms / total_reqs;
+                usleep(1000.0 * (delta_ms - time_used_ms));
+            } else
+                avg_interval_ms += time_used_ms / total_reqs;
+
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
-        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %11.5lf\n", intensity, avg_interval_ms);
         fflush(stdout);
-
-        cur_time_ms += 50000.0;
     }
-
-    return cur_time_ms + 50000.0;
 }
 
 /**
  * Latency benchmark - sequential write.
- * Returns a safe finish time.
  */
-static double
-bench_seq_write(double begin_time_ms)
+static void
+bench_seq_write()
 {
-    double cur_time_ms = begin_time_ms;
+    struct timeval old_time, new_time;
     unsigned long addr = 0;
 
-    std::cout << "Latency Benchmark - Logical Sequential Write:" << std::endl
-              << "  Intensity (#4K-Reqs/s)   Latency (ms)"       << std::endl;    
+    std::cout << "Benchmark - Logical Sequential Write:"    << std::endl
+              << "  Intensity (#4K-Reqs/s)   Interval (ms)" << std::endl;    
 
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        double delta_ms = 1000.0 / (double) intensity;
-        double avg_time_used_ms = 0;
-        int num_reqs = 0;
+        double delta_ms = 1000.0 / (double) intensity, avg_interval_ms = 0;
+        int num_reqs = 0, total_reqs = PASSES_PER_ROUND * intensity;
 
-        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
-            double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
+        for (num_reqs = 0; num_reqs < total_reqs; ++num_reqs) {
+            double time_used_ms;
 
-            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
+            gettimeofday(&old_time, NULL);
+            issue_write(addr, PAGE_SIZE);
+            gettimeofday(&new_time, NULL);
+
+            time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
+                         + (double) (new_time.tv_usec - old_time.tv_usec) / 1000;
+
+            if (delta_ms > time_used_ms) {
+                avg_interval_ms += delta_ms / total_reqs;
+                usleep(1000.0 * (delta_ms - time_used_ms));
+            } else
+                avg_interval_ms += time_used_ms / total_reqs;
+
             addr = (addr + PAGE_SIZE) % FLASH_SPACE;
         }
 
-        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %11.5lf\n", intensity, avg_interval_ms);
         fflush(stdout);
-
-        cur_time_ms += 50000.0;
     }
-
-    return cur_time_ms + 50000.0;
 }
 
 /**
  * Latency benchmark - uniformly random read.
- * Returns a safe finish time.
  */
-static double
-bench_rnd_read(double begin_time_ms)
+static void
+bench_rnd_read()
 {
-    double cur_time_ms = begin_time_ms;
+    struct timeval old_time, new_time;
     std::default_random_engine rand_gen;
     std::uniform_int_distribution<unsigned long> addr_dist(0,
                                                            FLASH_SPACE
                                                            / PAGE_SIZE);
     unsigned long addr;
 
-    std::cout << "Latency Benchmark - Uniformly Random Read:" << std::endl
-              << "  Intensity (#4K-Reqs/s)   Latency (ms)"    << std::endl;
+    std::cout << "Benchmark - Uniformly Random Read:"       << std::endl
+              << "  Intensity (#4K-Reqs/s)   Interval (ms)" << std::endl;
 
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        double delta_ms = 1000.0 / (double) intensity;
-        double avg_time_used_ms = 0;
-        int num_reqs = 0;
+        double delta_ms = 1000.0 / (double) intensity, avg_interval_ms = 0;
+        int num_reqs = 0, total_reqs = PASSES_PER_ROUND * intensity;
 
-        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < total_reqs; ++num_reqs) {
+            double time_used_ms;
+
             addr = PAGE_SIZE * addr_dist(rand_gen);
             
-            double time_used_ms = issue_read(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
+            gettimeofday(&old_time, NULL);
+            issue_read(addr, PAGE_SIZE);
+            gettimeofday(&new_time, NULL);
 
-            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
+            time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
+                         + (double) (new_time.tv_usec - old_time.tv_usec) / 1000;
+
+            if (delta_ms > time_used_ms) {
+                avg_interval_ms += delta_ms / total_reqs;
+                usleep(1000.0 * (delta_ms - time_used_ms));
+            } else
+                avg_interval_ms += time_used_ms / total_reqs;
         }
 
-        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %11.5lf\n", intensity, avg_interval_ms);
         fflush(stdout);
-
-        cur_time_ms += 50000.0;
     }
-
-    return cur_time_ms + 50000.0;
 }
 
 /**
  * Latency benchmark - uniformly random write.
- * Returns a safe finish time.
  */
-static double
-bench_rnd_write(double begin_time_ms)
+static void
+bench_rnd_write()
 {
-    double cur_time_ms = begin_time_ms;
+    struct timeval old_time, new_time;
     std::default_random_engine rand_gen;
     std::uniform_int_distribution<unsigned long> addr_dist(0,
                                                            FLASH_SPACE
                                                            / PAGE_SIZE);
     unsigned long addr;
 
-    std::cout << "Latency Benchmark - Uniformly Random Write:" << std::endl
-              << "  Intensity (#4K-Reqs/s)   Latency (ms)"     << std::endl;
+    std::cout << "Benchmark - Uniformly Random Write:"      << std::endl
+              << "  Intensity (#4K-Reqs/s)   Interval (ms)" << std::endl;
 
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
          intensity += INTENSITY_TICK) {
         /** A round of benchmarking for given intensity. */
-        double delta_ms = 1000.0 / (double) intensity;
-        double avg_time_used_ms = 0;
-        int num_reqs = 0;
+        double delta_ms = 1000.0 / (double) intensity, avg_interval_ms = 0;
+        int num_reqs = 0, total_reqs = PASSES_PER_ROUND * intensity;
 
-        for (num_reqs = 0; num_reqs < REQS_PER_ROUND; ++num_reqs) {
+        for (num_reqs = 0; num_reqs < total_reqs; ++num_reqs) {
+            double time_used_ms;
+
             addr = PAGE_SIZE * addr_dist(rand_gen);
-            
-            double time_used_ms = issue_write(addr, PAGE_SIZE, cur_time_ms);
-            avg_time_used_ms += time_used_ms / REQS_PER_ROUND;
 
-            cur_time_ms += time_used_ms > delta_ms ? delta_ms : time_used_ms;
+            gettimeofday(&old_time, NULL);
+            issue_write(addr, PAGE_SIZE);
+            gettimeofday(&new_time, NULL);
+
+            time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
+                         + (double) (new_time.tv_usec - old_time.tv_usec) / 1000;
+
+            if (delta_ms > time_used_ms) {
+                avg_interval_ms += delta_ms / total_reqs;
+                usleep(1000.0 * (delta_ms - time_used_ms));
+            } else
+                avg_interval_ms += time_used_ms / total_reqs;
         }
 
-        printf("  %20d     %10.5lf\n", intensity, avg_time_used_ms);
+        printf("  %20d     %11.5lf\n", intensity, avg_interval_ms);
         fflush(stdout);
-
-        cur_time_ms += 50000.0;
     }
-
-    return cur_time_ms + 50000.0;
 }
 
 
 /**
  * Fill device with randomly written data.
  */
-static double
-fill_device(double begin_time_ms)
+static void
+fill_device()
 {
-    double cur_time_ms = begin_time_ms, delta_ms = 1.0;
     unsigned long addr = 0;
     
     for (size_t i = 0; i < (FLASH_SPACE / PAGE_SIZE); ++i) {
         addr = i * PAGE_SIZE;
-        issue_write(addr, PAGE_SIZE, cur_time_ms);
-        cur_time_ms += delta_ms;
+        issue_write(addr, PAGE_SIZE);
     }
-
-    return cur_time_ms + 50000.0;
 }
 
 
 int
 main(int argc, char *argv[])
 {
-    double cur_time_ms = 1000.0;
-
     if (argc != 2)
         error("please provide one argument: the socket file path");
 
@@ -375,13 +380,13 @@ main(int argc, char *argv[])
     /** Open client socket & connect. */
     prepare_socket();
 
-    cur_time_ms = fill_device(cur_time_ms);
+    fill_device();
 
-    cur_time_ms = bench_seq_read(cur_time_ms);
-    cur_time_ms = bench_rnd_read(cur_time_ms);
+    bench_seq_read();
+    bench_rnd_read();
     
-    cur_time_ms = bench_seq_write(cur_time_ms);
-    cur_time_ms = bench_rnd_write(cur_time_ms);
+    bench_seq_write();
+    bench_rnd_write();
 
     return 0;
 }

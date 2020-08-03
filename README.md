@@ -124,11 +124,11 @@ For each request, messages MUST strictly follow the exact byte length and order.
 
 To do a WRITE:
 
-<img src="figures/socket-protocol-write.jpg" width=420px align=center />
+<img src="figures/flashsim-socket-protocol-write.jpg" width=420px align=center />
 
 To do a READ:
 
-<img src="figures/socket-protocol-read.jpg" width=420px align=center />
+<img src="figures/flashsim-socket-protocol-read.jpg" width=420px align=center />
 
 Messages format details:
 
@@ -152,6 +152,13 @@ Messages format details:
   +------------------------------+
   ```
   If passing actual data, length of each request CANNOT EXCEED `65516` bytes, as this is the message size limit of UNIX-domain sockets.
+- ACK Byte:
+  ```text
+  +----------+
+  | ACK Byte |
+  |  1 byte  |  = 1 byte nonsense
+  +----------+
+  ```
 
 
 ## FTL Contribution From Matias

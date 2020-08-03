@@ -94,8 +94,8 @@ main(int argc, char *argv[])
     /** Send a write request. */
     {
         struct req_header header;
-        int wbytes;
-        char data[17] = "String-of-len-16";
+        int rbytes, wbytes;
+        char data[17] = "String-of-len-16", ack_byte;
 
         // Request header.
         header.direction = DIR_WRITE;
@@ -112,6 +112,11 @@ main(int argc, char *argv[])
         if (wbytes != (int) header.size)
             error("write request data send failed");
 
+        // ACK.
+        rbytes = read(ssock, &ack_byte, 1);
+        if (rbytes != 1)
+            error("write request ACK error");
+
         printf("Written \"%s\" to SSD\n", data);
     }
 
@@ -119,7 +124,7 @@ main(int argc, char *argv[])
     {
         struct req_header header;
         int rbytes, wbytes;
-        char data[17] = "";
+        char data[17] = "", ack_byte;
 
         // Request header.
         header.direction = DIR_READ;
@@ -135,6 +140,11 @@ main(int argc, char *argv[])
         rbytes = read(ssock, data, header.size);
         if (rbytes != (int) header.size)
             error("read request data recv failed");
+
+        // ACK.
+        rbytes = read(ssock, &ack_byte, 1);
+        if (rbytes != 1)
+            error("read request ACK error");
 
         printf("Read \"%s\" from SSD\n", data);
     }
