@@ -43,10 +43,9 @@ struct __attribute__((__packed__)) req_header {
     int           direction : 32;
     unsigned long addr      : 64;
     unsigned int  size      : 32;
-    double        start_time;
 };
 
-static const size_t REQ_HEADER_LENGTH = 24;
+static const size_t REQ_HEADER_LENGTH = 16;
 
 static const int DIR_READ  = 0;
 static const int DIR_WRITE = 1;
@@ -95,16 +94,13 @@ main(int argc, char *argv[])
     /** Send a write request. */
     {
         struct req_header header;
-        int rbytes, wbytes;
+        int wbytes;
         char data[17] = "String-of-len-16";
-        char time_used_buf[8];
-        double time_used;
 
         // Request header.
         header.direction = DIR_WRITE;
         header.addr = 8192;
         header.size = 17;
-        header.start_time = 3200.28;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
@@ -116,14 +112,7 @@ main(int argc, char *argv[])
         if (wbytes != (int) header.size)
             error("write request data send failed");
 
-        // Processing time respond.
-        rbytes = read(ssock, time_used_buf, 8);
-        if (rbytes != 8)
-            error("write processing time recv failed");
-
-        time_used = *((double *) time_used_buf);
-        printf("Written \"%s\" to SSD, took %.10lf ms\n",
-               data, time_used);
+        printf("Written \"%s\" to SSD\n", data);
     }
 
     /** Send a read request to read that out. */
@@ -131,14 +120,11 @@ main(int argc, char *argv[])
         struct req_header header;
         int rbytes, wbytes;
         char data[17] = "";
-        char time_used_buf[8];
-        double time_used;
 
         // Request header.
         header.direction = DIR_READ;
         header.addr = 8192;
         header.size = 17;
-        header.start_time = 3471.32;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
@@ -150,13 +136,6 @@ main(int argc, char *argv[])
         if (rbytes != (int) header.size)
             error("read request data recv failed");
 
-        // Processing time respond.
-        rbytes = read(ssock, time_used_buf, 8);
-        if (rbytes != 8)
-            error("read processing time recv failed");
-
-        time_used = *((double *) time_used_buf);
-        printf("Read \"%s\" from SSD, took %.10lf ms\n",
-               data, time_used);
+        printf("Read \"%s\" from SSD\n", data);
     }
 }

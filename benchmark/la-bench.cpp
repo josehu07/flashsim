@@ -45,10 +45,9 @@ struct __attribute__((__packed__)) req_header {
     int           direction : 32;
     unsigned long addr      : 64;
     unsigned int  size      : 32;
-    double        start_time;
 };
 
-static const size_t REQ_HEADER_LENGTH = 24;
+static const size_t REQ_HEADER_LENGTH = 16;
 
 static const int DIR_READ  = 0;
 static const int DIR_WRITE = 1;

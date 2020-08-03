@@ -2,7 +2,7 @@
  * Standalone FlashSim simulator.
  *
  * Made this standalone version to enable non-C++ projects to interact with
- * multiple simulated flash SSDs.
+ * multiple simulated flash SSDs in real-time interactively.
  *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */
@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -28,6 +29,8 @@ using namespace ssd;
 static Ssd *ssd_handle;
 static std::string sock_name;
 static int ssock;
+
+static struct timeval boot_time;
 
 
 /**
@@ -74,10 +77,9 @@ struct __attribute__((__packed__)) req_header {
     int           direction : 32;
     unsigned long addr      : 64;
     unsigned int  size      : 32;
-    double        start_time;
 };
 
-static const size_t REQ_HEADER_LENGTH = 24;
+static const size_t REQ_HEADER_LENGTH = 16;
 // Reqeust header message should exactly match this size.
 
 static const int DIR_READ  = 0;
@@ -93,23 +95,23 @@ static const int DIR_WRITE = 1;
  *           or NULL if not passing actual data
  */
 static double
-process_write(ulong addr, uint size, void *buf, double start_time)
+process_write(ulong addr, uint size, void *buf, double start_time_ms)
 {
-    double time_used;
+    double time_used_ms;
 
     if (PAGE_ENABLE_DATA) {
-        time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
-                                             size / PAGE_SIZE,
-                                             start_time, buf);
+        time_used_ms = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
+                                                size / PAGE_SIZE,
+                                                start_time_ms, buf);
     } else {
-        time_used = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
-                                             size / PAGE_SIZE,
-                                             start_time, NULL);
+        time_used_ms = ssd_handle->event_arrive(WRITE, addr / PAGE_SIZE,
+                                                size / PAGE_SIZE,
+                                                start_time_ms, NULL);
     }
 
     // printf("WR: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
-    //        start_time, time_used);
-    return time_used;
+    //        start_time_ms, time_used_ms);
+    return time_used_ms;
 }
 
 /**
@@ -121,17 +123,17 @@ process_write(ulong addr, uint size, void *buf, double start_time)
  * actual data.
  */
 static double
-process_read(ulong addr, uint size, double start_time)
+process_read(ulong addr, uint size, double start_time_ms)
 {
-    double time_used;
+    double time_used_ms;
 
-    time_used = ssd_handle->event_arrive(READ, addr / PAGE_SIZE,
-                                         size / PAGE_SIZE,
-                                         start_time, NULL);
+    time_used_ms = ssd_handle->event_arrive(READ, addr / PAGE_SIZE,
+                                            size / PAGE_SIZE,
+                                            start_time_ms, NULL);
 
     // printf("RD: addr %lu of size %u @ %.3lf ... %.10lf\n", addr, size,
-    //        start_time, time_used);
-    return time_used;
+    //        start_time_ms, time_used_ms);
+    return time_used_ms;
 }
 
 
@@ -188,14 +190,15 @@ request_loop(int csock)
             error("request header wrong length");
         } else {
             struct req_header *header = (struct req_header *) buf;
-            void *data, *resp_data, *resp_time;
+            struct timeval req_time;
+            void *data = NULL, *resp_data;
             uint remainder, size;
-            double time_used;
+            double start_time_ms, time_used_ms;
 
             if (header->size <= 0)
                 error("request header invalid size");
 
-            if (header->addr % PAGE_SIZE != 0)
+            if ((header->addr % PAGE_SIZE) != 0)
                 error("request unaligned logical address");
 
             /**
@@ -207,17 +210,22 @@ request_loop(int csock)
             size = remainder == 0 ? header->size
                                   : header->size + PAGE_SIZE - remainder;
 
+            /** Get request start time in ms after boot time. */
+            gettimeofday(&req_time, NULL);
+            start_time_ms = (double) (req_time.tv_sec - boot_time.tv_sec) * 1000
+                          + (double) (req_time.tv_usec - boot_time.tv_usec) / 1000;
+
             /**
              * If READ, after processing the request, data read from
              * device can be accessed through `Ssd::get_result_buffer()`.
              * We will then send back to client a packet of
              * `header->size` length containing data the client wants,
-             * followed a packet of length 8 containing `time_used`
+             * followed a packet of length 8 containing `time_used_ms`
              * as double.
              */
             if (header->direction == DIR_READ) {
-                time_used = process_read(header->addr, size,
-                                         header->start_time);
+                time_used_ms = process_read(header->addr, size,
+                                            start_time_ms);
 
                 if (PAGE_ENABLE_DATA) {
                     resp_data = malloc(header->size);
@@ -230,21 +238,12 @@ request_loop(int csock)
 
                     free(resp_data);
                 }
-
-                resp_time = malloc(8);
-                memcpy(resp_time, &time_used, sizeof(double));
-
-                wbytes = write(csock, resp_time, 8);
-                if (wbytes != 8)
-                    error("respond time of read failed");
-
-                free(resp_time);
             
             /**
              * If WRITE, we expect the next message from client to be a
              * packet of length exactly `header->size` containing the
              * data to write. We will then send back to client a packet
-             * of length 8 containing `time_used` as double.
+             * of length 8 containing `time_used_ms` as double.
              */
             } else {
                 if (PAGE_ENABLE_DATA) {
@@ -256,21 +255,17 @@ request_loop(int csock)
                         error("client data to write wrong length");
                 }
 
-                time_used = process_write(header->addr, size, data,
-                                          header->start_time);
+                time_used_ms = process_write(header->addr, size, data,
+                                             start_time_ms);
 
                 if (PAGE_ENABLE_DATA)
                     free(data);
-
-                resp_time = malloc(8);
-                memcpy(resp_time, &time_used, sizeof(double));
-
-                wbytes = write(csock, resp_time, sizeof(resp_time));
-                if (wbytes != 8)
-                    error("respond to write failed");
-
-                free(resp_time);
             }
+
+            /** Sleep for processing time of this request. */
+            if(time_used_ms <= 0)
+                error("negative processing time");
+            usleep((int) (time_used_ms * 1000));
         }
     }
 }
@@ -292,8 +287,7 @@ main(int argc, char *argv[])
         load_config(argv[2]);
 
     /** Check that request header struct compiles to correct size. */
-    if (sizeof(struct req_header) != REQ_HEADER_LENGTH
-        || sizeof(double) != 8)
+    if (sizeof(struct req_header) != REQ_HEADER_LENGTH)
         error("request header length incorrectly compiled");
 
     std::cout << "=== SSD Device Configuration ===" << std::endl;
@@ -307,6 +301,8 @@ main(int argc, char *argv[])
     /** Open server socket, bind, & listen. */
     prepare_socket();
     std::cout << "SSD simulator BOOTED" << std::endl;
+
+    gettimeofday(&boot_time, NULL);
 
     /** Register Ctrl+C handler. */
     sigint_handler.sa_handler = clean_up;

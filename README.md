@@ -1,6 +1,6 @@
 # FlashSim Event-Driven SSD Simulator
 
-This is Guanzhou's extended version of the FlashSim event-driven flash SSD simulator.
+This is Guanzhou's extended version of the FlashSim event-driven flash SSD simulator. Real-time and interactive. Simulates request latency synchronously.
 
 
 ## Installation
@@ -103,6 +103,8 @@ $ ./client simssd
 # The simulator won't exit until Ctrl+C in shell 1.
 ```
 
+> For the standalone version, unit of time in the configuration file must be in milliseconds (ms).
+
 Please reference if you use for your research:
 
 ```bibtex
@@ -132,11 +134,11 @@ Messages format details:
 
 - Request Header:
   ```text
-  +-----------+-----------------+--------------+------------+
-  | Direction | Logical address |    Size      | Start time |
-  |    int    |  unsigned long  | unsigned int |   double   |  = 24 bytes
-  |  4 bytes  |     8 bytes     |   4 bytes    |  8 bytes   |
-  +-----------+-----------------+--------------+------------+
+  +-----------+-----------------+--------------+
+  | Direction | Logical address |    Size      |
+  |    int    |  unsigned long  | unsigned int |  = 16 bytes
+  |  4 bytes  |     8 bytes     |   4 bytes    |
+  +-----------+-----------------+--------------+
   ```
   where `Direction` can be:
     - `0` for READ
@@ -150,14 +152,6 @@ Messages format details:
   +------------------------------+
   ```
   If passing actual data, length of each request CANNOT EXCEED `65516` bytes, as this is the message size limit of UNIX-domain sockets.
-- Processing Time:
-  ```text
-  +-------------------------+
-  | Processing time elapsed |
-  |          double         |  = 8 bytes
-  |         8 bytes         |
-  +-------------------------+
-  ```
 
 
 ## FTL Contribution From Matias
