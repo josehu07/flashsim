@@ -2,8 +2,6 @@
 
 This is Guanzhou's extended FlashSim event-driven flash SSD simulator.
 
-The standalone version is real-time and interactive. For now, it accepts incoming requests synchronously, thus in-device parallelism is not modeled yet.
-
 
 ## Installation
 
@@ -38,12 +36,14 @@ $ ./test2
 $ make clean
 ```
 
+
 ## Usage
 
 There are two ways to use the FlashSim simulator:
 
 - As a C++ library, or
 - As a standalone version and send reqeusts / receive responses through a strictly-defined socket API
+
 
 ### Library Version
 
@@ -66,6 +66,7 @@ For use with your own C++ projects and which only need one device configuration,
    Ssd::get_result_buffer();  // For retriving read request result data
    ```
 3. Compile your project with FlashSim together & run
+
 
 ### Standalone Version
 
@@ -105,7 +106,9 @@ $ ./client simssd
 # The simulator won't exit until Ctrl+C in shell 1.
 ```
 
-> For standalone version, unit of time in the configuration file must be in milliseconds (ms).
+> ATTENTION:
+>   1. For standalone version, unit of time in the configuration file MUST BE in milliseconds (ms).
+>   2. If your client has concurrent threads issuing requests to a single device instance, make sure that the device is mutex locked so that socket messages do not interleave in order. You can simulate latency by sleeping in those client threads.
 
 Please reference if you use for your research:
 
@@ -118,6 +121,7 @@ Please reference if you use for your research:
 }
 ```
 
+
 ## Standalone Socket Protocol
 
 This section defines the Unix-domain socket protocol that the standalone FlashSim simulator uses. *Since sockets are language-independent, your projects are not restricted to C/C++ - even Python should work, as long as message bytes are exactly correct.*
@@ -126,25 +130,26 @@ For each request, messages MUST strictly follow the exact byte length and order.
 
 To do a WRITE:
 
-<img src="figures/flashsim-socket-protocol-write.jpg" width=420px align=center />
+<img src="figures/socket-protocol-write.jpg" width=420px align=center />
 
 To do a READ:
 
-<img src="figures/flashsim-socket-protocol-read.jpg" width=420px align=center />
+<img src="figures/socket-protocol-read.jpg" width=420px align=center />
 
 Messages format details:
 
 - Request Header:
   ```text
-  +-----------+-----------------+--------------+
-  | Direction | Logical address |    Size      |
-  |    int    |  unsigned long  | unsigned int |  = 16 bytes
-  |  4 bytes  |     8 bytes     |   4 bytes    |
-  +-----------+-----------------+--------------+
+  +-----------+-----------------+----------+-----------------+
+  | Direction | Logical address |   Size   | Start time (us) |
+  | uint32_t  |    uint64_t     | uint32_t |    uint64_t     |  = 24 bytes
+  |  4 bytes  |     8 bytes     |  4 bytes |     8 bytes     |
+  +-----------+-----------------+----------+-----------------+
   ```
   where `Direction` can be:
-    - `0` for READ
-    - `1` for WRITE
+    - `0` for READ,
+    - `1` for WRITE,
+  and `Start time` is in microseconds (us) unit.
 - Data Bytes [This message presents IF AND ONLY IF the `PAGE_ENABLE_DATA` option in conf file is set to `1`; Otherwise, skip this message]:
   ```text
   +------------------------------+
@@ -154,13 +159,15 @@ Messages format details:
   +------------------------------+
   ```
   If passing actual data, length of each request CANNOT EXCEED `65516` bytes, as this is the message size limit of UNIX-domain sockets.
-- ACK Byte:
+- Processing Time Respond:
   ```text
-  +----------+
-  | ACK Byte |
-  |  1 byte  |  = 1 byte nonsense
-  +----------+
+  +----------------------+
+  | Processing time (us) |
+  |       uint64_t       |  = 8 bytes
+  |        8 bytes       |
+  +----------------------+
   ```
+  where `Processing time` is in microseconds (us) unit.
 
 
 ## FTL Contribution From Matias

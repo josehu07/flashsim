@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -40,12 +41,13 @@ static int ssock;
  * Message size MUST exactly match in bytes!
  */
 struct __attribute__((__packed__)) req_header {
-    int           direction : 32;
-    unsigned long addr      : 64;
-    unsigned int  size      : 32;
+    uint32_t direction     : 32;
+    uint64_t addr          : 64;
+    uint32_t size          : 32;
+    uint64_t start_time_us : 64;
 };
 
-static const size_t REQ_HEADER_LENGTH = 16;
+static const size_t REQ_HEADER_LENGTH = 24;
 
 static const int DIR_READ  = 0;
 static const int DIR_WRITE = 1;
@@ -80,6 +82,8 @@ prepare_socket()
 int
 main(int argc, char *argv[])
 {
+    struct timeval base_time, cur_time;
+
     if (argc != 2)
         error("please provide one argument: the socket file path");
 
@@ -91,45 +95,62 @@ main(int argc, char *argv[])
     /** Open client socket & connect. */
     prepare_socket();
 
+    gettimeofday(&base_time, NULL);
+
     /** Send a write request. */
     {
         struct req_header header;
         int rbytes, wbytes;
-        char data[17] = "String-of-len-16", ack_byte;
+        char data[17] = "String-of-len-16";
+        uint64_t start_time_us, time_used_us;
+
+        gettimeofday(&cur_time, NULL);
+        start_time_us = 1000000 * (cur_time.tv_sec - base_time.tv_sec)
+                        + (cur_time.tv_usec - base_time.tv_usec);
 
         // Request header.
         header.direction = DIR_WRITE;
         header.addr = 8192;
         header.size = 17;
+        header.start_time_us = start_time_us;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
             error("write request header send failed");
 
-        // Data to write. If not passing actula data, then do not send
+        // Data to write. If not passing actual data, then do not send
         // this message.
         wbytes = write(ssock, data, header.size);
         if (wbytes != (int) header.size)
             error("write request data send failed");
 
-        // ACK.
-        rbytes = read(ssock, &ack_byte, 1);
-        if (rbytes != 1)
-            error("write request ACK error");
+        // Processing time respond.
+        rbytes = read(ssock, &time_used_us, 8);
+        if (rbytes != 8)
+            error("write processing time recv failed");
 
-        printf("Written \"%s\" to SSD\n", data);
+        // Simulate latency by sleeping in the client code.
+        usleep(time_used_us);
+
+        printf("Written \"%s\" to SSD, took %lu us\n", data, time_used_us);
     }
 
     /** Send a read request to read that out. */
     {
         struct req_header header;
         int rbytes, wbytes;
-        char data[17] = "", ack_byte;
+        char data[17] = "";
+        uint64_t start_time_us, time_used_us;
+
+        gettimeofday(&cur_time, NULL);
+        start_time_us = 1000000 * (cur_time.tv_sec - base_time.tv_sec)
+                        + (cur_time.tv_usec - base_time.tv_usec);
 
         // Request header.
         header.direction = DIR_READ;
         header.addr = 8192;
         header.size = 17;
+        header.start_time_us = start_time_us;
 
         wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
         if (wbytes != REQ_HEADER_LENGTH)
@@ -141,11 +162,14 @@ main(int argc, char *argv[])
         if (rbytes != (int) header.size)
             error("read request data recv failed");
 
-        // ACK.
-        rbytes = read(ssock, &ack_byte, 1);
-        if (rbytes != 1)
-            error("read request ACK error");
+        // Processing time respond.
+        rbytes = read(ssock, &time_used_us, 8);
+        if (rbytes != 8)
+            error("read processing time recv failed");
 
-        printf("Read \"%s\" from SSD\n", data);
+        // Simulate latency by sleeping in the client code.
+        usleep(time_used_us);
+
+        printf("Read \"%s\" from SSD, took %lu us\n", data, time_used_us);
     }
 }

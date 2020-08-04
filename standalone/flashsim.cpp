@@ -2,7 +2,7 @@
  * Standalone FlashSim simulator.
  *
  * Made this standalone version to enable non-C++ projects to interact with
- * multiple simulated flash SSDs in real-time interactively.
+ * multiple simulated flash SSDs interactively.
  *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */
@@ -29,8 +29,6 @@ using namespace ssd;
 static Ssd *ssd_handle;
 static std::string sock_name;
 static int ssock;
-
-static struct timeval boot_time;
 
 
 /**
@@ -74,12 +72,13 @@ error(std::string msg)
  * Message size MUST exactly match in bytes!
  */
 struct __attribute__((__packed__)) req_header {
-    int           direction : 32;
-    unsigned long addr      : 64;
-    unsigned int  size      : 32;
+    uint32_t direction     : 32;
+    uint64_t addr          : 64;
+    uint32_t size          : 32;
+    uint64_t start_time_us : 64;
 };
 
-static const size_t REQ_HEADER_LENGTH = 16;
+static const size_t REQ_HEADER_LENGTH = 24;
 // Reqeust header message should exactly match this size.
 
 static const int DIR_READ  = 0;
@@ -184,17 +183,15 @@ request_loop(int csock)
         rbytes = read(csock, buf, REQ_HEADER_LENGTH);
 
         if (rbytes == 0) {
-            std::cout << "Client connection ENDED" << std::endl;
             break;
         } else if (rbytes != REQ_HEADER_LENGTH) {
             error("request header wrong length");
         } else {
             struct req_header *header = (struct req_header *) buf;
-            struct timeval req_time;
             void *data = NULL, *resp_data;
             uint remainder, size;
             double start_time_ms, time_used_ms;
-            char ack_byte = 'k';
+            unsigned long time_used_us;
 
             if (header->size <= 0)
                 error("request header invalid size");
@@ -210,11 +207,7 @@ request_loop(int csock)
             remainder = header->size % PAGE_SIZE;
             size = remainder == 0 ? header->size
                                   : header->size + PAGE_SIZE - remainder;
-
-            /** Get request start time in ms after boot time. */
-            gettimeofday(&req_time, NULL);
-            start_time_ms = (double) (req_time.tv_sec - boot_time.tv_sec) * 1000
-                          + (double) (req_time.tv_usec - boot_time.tv_usec) / 1000;
+            start_time_ms = ((double) header->start_time_us) / 1000.0;
 
             /**
              * If READ, after processing the request, data read from
@@ -263,15 +256,15 @@ request_loop(int csock)
                     free(data);
             }
 
-            /** Sleep for processing time of this request. */
+            /** Send back processing time response. */
             if (time_used_ms <= 0)
                 error("negative processing time");
-            usleep((int) (time_used_ms * 1000));
 
-            /** Send back ACK message. */
-            wbytes = write(csock, &ack_byte, 1);
-            if (wbytes != 1)
-                error("send back ACK failed");
+            time_used_us = (unsigned long) (time_used_ms * 1000);
+
+            wbytes = write(csock, &time_used_us, 8);
+            if (wbytes != 8)
+                error("send back processing time failed");
         }
     }
 }
@@ -308,8 +301,6 @@ main(int argc, char *argv[])
     prepare_socket();
     std::cout << "SSD simulator BOOTED" << std::endl;
 
-    gettimeofday(&boot_time, NULL);
-
     /** Register Ctrl+C handler. */
     sigint_handler.sa_handler = clean_up;
     sigemptyset(&sigint_handler.sa_mask);
@@ -328,6 +319,7 @@ main(int argc, char *argv[])
         else {
             std::cout << "New connection ACCEPTED" << std::endl;
             request_loop(csock);
+            std::cout << "Client connection ENDED" << std::endl;
         }
 
         close(csock);

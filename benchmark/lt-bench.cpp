@@ -43,12 +43,13 @@ static int ssock;
  * Message size MUST exactly match in bytes!
  */
 struct __attribute__((__packed__)) req_header {
-    int           direction : 32;
-    unsigned long addr      : 64;
-    unsigned int  size      : 32;
+    uint32_t direction     : 32;
+    uint64_t addr          : 64;
+    uint32_t size          : 32;
+    uint64_t start_time_us : 64;
 };
 
-static const size_t REQ_HEADER_LENGTH = 16;
+static const size_t REQ_HEADER_LENGTH = 24;
 
 static const int DIR_READ  = 0;
 static const int DIR_WRITE = 1;
@@ -104,20 +105,19 @@ issue_write(unsigned long addr, unsigned int size)
 {
     struct req_header header;
     int rbytes, wbytes;
+    uint64_t start_time_us, time_used_us;
     void *data;
-    char ack_byte;
 
     if (addr % PAGE_SIZE != 0 || size <= 0)
         error("invalid issue_write()");
 
     data = malloc(size);
 
-
-
     // Request header.
     header.direction = DIR_WRITE;
     header.addr = addr;
     header.size = size;
+    header.
 
     wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
     if (wbytes != REQ_HEADER_LENGTH)
