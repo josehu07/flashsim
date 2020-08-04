@@ -1,6 +1,8 @@
 # FlashSim Event-Driven SSD Simulator
 
-This is Guanzhou's extended version of the FlashSim event-driven flash SSD simulator. Real-time and interactive. Simulates request latency synchronously.
+This is Guanzhou's extended FlashSim event-driven flash SSD simulator.
+
+The standalone version is real-time and interactive. For now, it accepts incoming requests synchronously, thus in-device parallelism is not modeled yet.
 
 
 ## Installation
