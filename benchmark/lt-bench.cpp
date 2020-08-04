@@ -60,6 +60,7 @@ static const int DIR_WRITE = 1;
  * for page redirection or garbage collection tasks.
  */
 static const unsigned long FLASH_SPACE = 67108864;
+// static const unsigned long FLASH_SPACE = 40263680;
 static const unsigned long PAGE_SIZE = 4096;
 
 
