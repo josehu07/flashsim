@@ -146,10 +146,9 @@ Messages format details:
   |  4 bytes  |     8 bytes     |  4 bytes |     8 bytes     |
   +-----------+-----------------+----------+-----------------+
   ```
-  where `Direction` can be:
-    - `0` for READ,
-    - `1` for WRITE,
-  and `Start time` is in microseconds (us) unit.
+  where `Start time` is in microseconds (us) unit, and `Direction` can be:
+    - `0` for READ;
+    - `1` for WRITE.
 - Data Bytes [This message presents IF AND ONLY IF the `PAGE_ENABLE_DATA` option in conf file is set to `1`; Otherwise, skip this message]:
   ```text
   +------------------------------+
