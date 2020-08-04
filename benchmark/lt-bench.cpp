@@ -2,6 +2,8 @@
  * Standalone FlashSim simulator benchmarking client. Passing actual data
  * here, so MUST ensure that `PAGE_ENABLE_DATA` option in conf is set to 1.
  *
+ * This is a synchronous benchmarking, not utilizing in-device parallelism.
+ *
  * Author: Guanzhou Hu <guanzhou.hu@wisc.edu>, 2020.
  */
 
@@ -36,6 +38,10 @@ error(std::string msg)
 /** Global handle & variables. */
 static std::string sock_name;
 static int ssock;
+
+
+/** Base time of the experiments. */
+static struct timeval base_time;
 
 
 /**
@@ -98,10 +104,10 @@ prepare_socket()
 
 
 /**
- * Make a write request.
+ * Issuing a write / read request.
  */
 static void
-issue_write(unsigned long addr, unsigned int size)
+issue_write(unsigned long addr, unsigned int size, struct timeval *cur_time)
 {
     struct req_header header;
     int rbytes, wbytes;
@@ -113,11 +119,14 @@ issue_write(unsigned long addr, unsigned int size)
 
     data = malloc(size);
 
+    start_time_us = 1000000 * (cur_time->tv_sec - base_time.tv_sec)
+                    + (cur_time->tv_usec - base_time.tv_usec);
+
     // Request header.
     header.direction = DIR_WRITE;
     header.addr = addr;
     header.size = size;
-    header.
+    header.start_time_us = start_time_us;
 
     wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
     if (wbytes != REQ_HEADER_LENGTH)
@@ -128,34 +137,37 @@ issue_write(unsigned long addr, unsigned int size)
     if (wbytes != (int) header.size)
         error("write request data send failed");
 
-    // ACK.
-    rbytes = read(ssock, &ack_byte, 1);
-    if (rbytes != 1)
-        error("write request ACK error");
+    // Processing time respond.
+    rbytes = read(ssock, &time_used_us, 8);
+    if (rbytes != 8)
+        error("write processing time recv failed");
+
+    usleep(time_used_us);
 
     free(data);
 }
 
-/**
- * Make a read request.
- */
 static void
-issue_read(unsigned long addr, unsigned int size)
+issue_read(unsigned long addr, unsigned int size, struct timeval *cur_time)
 {
     struct req_header header;
     int rbytes, wbytes;
+    uint64_t start_time_us, time_used_us;
     void *data;
-    char ack_byte;
 
     if (addr % PAGE_SIZE != 0 || size <= 0)
         error("invalid issue_read()");
 
     data = malloc(size);
 
+    start_time_us = 1000000 * (cur_time->tv_sec - base_time.tv_sec)
+                    + (cur_time->tv_usec - base_time.tv_usec);
+
     // Request header.
     header.direction = DIR_READ;
     header.addr = addr;
     header.size = size;
+    header.start_time_us = start_time_us;
 
     wbytes = write(ssock, &header, REQ_HEADER_LENGTH);
     if (wbytes != REQ_HEADER_LENGTH)
@@ -166,10 +178,12 @@ issue_read(unsigned long addr, unsigned int size)
     if (rbytes != (int) header.size)
         error("read request data recv failed");
 
-    // ACK.
-    rbytes = read(ssock, &ack_byte, 1);
-    if (rbytes != 1)
-        error("read request ACK error");
+    // Processing time respond.
+    rbytes = read(ssock, &time_used_us, 8);
+    if (rbytes != 8)
+        error("read processing time recv failed");
+
+    usleep(time_used_us);
 
     free(data);
 }
@@ -184,7 +198,7 @@ bench_seq_read()
     struct timeval old_time, new_time;
     unsigned long addr = 0;
 
-    std::cout << "Benchmark - Logical Sequential Read:"         << std::endl
+    std::cout << "Benchmark - Logical Sequential Read:"     << std::endl
               << "  Intensity (#4K-Reqs/s)   Interval (ms)" << std::endl;
 
     for (int intensity = INTENSITY_TICK; intensity <= MAX_INTENSITY;
@@ -197,7 +211,7 @@ bench_seq_read()
             double time_used_ms;
 
             gettimeofday(&old_time, NULL);
-            issue_read(addr, PAGE_SIZE);
+            issue_read(addr, PAGE_SIZE, &old_time);
             gettimeofday(&new_time, NULL);
 
             time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
@@ -218,7 +232,7 @@ bench_seq_read()
 }
 
 /**
- * Latency benchmark - sequential write.
+ * Benchmark - sequential write.
  */
 static void
 bench_seq_write()
@@ -239,7 +253,7 @@ bench_seq_write()
             double time_used_ms;
 
             gettimeofday(&old_time, NULL);
-            issue_write(addr, PAGE_SIZE);
+            issue_write(addr, PAGE_SIZE, &old_time);
             gettimeofday(&new_time, NULL);
 
             time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
@@ -260,7 +274,7 @@ bench_seq_write()
 }
 
 /**
- * Latency benchmark - uniformly random read.
+ * Benchmark - uniformly random read.
  */
 static void
 bench_rnd_read()
@@ -287,7 +301,7 @@ bench_rnd_read()
             addr = PAGE_SIZE * addr_dist(rand_gen);
             
             gettimeofday(&old_time, NULL);
-            issue_read(addr, PAGE_SIZE);
+            issue_read(addr, PAGE_SIZE, &old_time);
             gettimeofday(&new_time, NULL);
 
             time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
@@ -306,7 +320,7 @@ bench_rnd_read()
 }
 
 /**
- * Latency benchmark - uniformly random write.
+ * Benchmark - uniformly random write.
  */
 static void
 bench_rnd_write()
@@ -333,7 +347,7 @@ bench_rnd_write()
             addr = PAGE_SIZE * addr_dist(rand_gen);
 
             gettimeofday(&old_time, NULL);
-            issue_write(addr, PAGE_SIZE);
+            issue_write(addr, PAGE_SIZE, &old_time);
             gettimeofday(&new_time, NULL);
 
             time_used_ms = (double) (new_time.tv_sec - old_time.tv_sec) * 1000
@@ -359,10 +373,13 @@ static void
 fill_device()
 {
     unsigned long addr = 0;
+    struct timeval cur_time;
     
     for (size_t i = 0; i < (FLASH_SPACE / PAGE_SIZE); ++i) {
         addr = i * PAGE_SIZE;
-        issue_write(addr, PAGE_SIZE);
+
+        gettimeofday(&cur_time, NULL);
+        issue_write(addr, PAGE_SIZE, &cur_time);
     }
 }
 
@@ -380,6 +397,8 @@ main(int argc, char *argv[])
 
     /** Open client socket & connect. */
     prepare_socket();
+
+    gettimeofday(&base_time, NULL);
 
     fill_device();
 
