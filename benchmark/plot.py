@@ -22,10 +22,7 @@ with open("results.txt") as fres:
         elif cur_bench is not None \
              and len(line) > 0 and line[0].isdecimal():
             line = line.split()
-            
-            intensity, interval = int(line[0]), float(line[1])
-            throughput = 1000.0 * (PAGE_SIZE / 1024) / interval
-
+            intensity, throughput = int(line[0]), float(line[1])
             intensities[cur_bench].append(intensity)
             throughputs[cur_bench].append(throughput)
 

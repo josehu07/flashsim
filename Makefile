@@ -53,7 +53,7 @@ $(foreach PROG,$(PROGRAMS_SA),$(eval $(call program_template_sa,$(PROG))))
 
 define program_template_bm
   $1 : $$(BM_DIR)/$1.o
-	$$(CXX) $$(LDFLAGS) $$< -o $$@
+	$$(CXX) $$(LDFLAGS) -pthread $$< -o $$@
 endef
 
 $(foreach PROG,$(PROGRAMS_BM),$(eval $(call program_template_bm,$(PROG))))
