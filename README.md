@@ -3,6 +3,7 @@
 ![languages](https://img.shields.io/github/languages/count/josehu07/flashsim?color=green)
 ![top-lang](https://img.shields.io/github/languages/top/josehu07/flashsim?color=ff69b4)
 ![code-size](https://img.shields.io/github/languages/code-size/josehu07/flashsim?color=lightgrey)
+![license](https://img.shields.io/github/license/josehu07/flashsim)
 
 This is Guanzhou's extended FlashSim event-driven flash SSD simulator.
 
